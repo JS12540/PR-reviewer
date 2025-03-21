@@ -4,33 +4,63 @@ from ai_agent import create_agents
 import requests
 import re
 
-def read_diff():
-    """Read the diff from the PR."""
-    pr_number = os.getenv("PR_NUMBER")
-    repo = os.getenv("GITHUB_REPO")
-    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
+def fetch_file_content(repo, filename, ref):
+    """Fetch the entire content of the file from the repo."""
+    url = f"https://api.github.com/repos/{repo}/contents/{filename}?ref={ref}"
     
     headers = {
         "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
         "Accept": "application/vnd.github.v3+json"
     }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"Failed to fetch file content: {filename}")
+        return None
+
+    file_data = response.json()
+    if "content" in file_data:
+        import base64
+        return base64.b64decode(file_data["content"]).decode("utf-8")
+    return None
+
+
+def read_diff():
+    """Read the diff from the PR and include full file context."""
+    pr_number = os.getenv("PR_NUMBER")
+    repo = os.getenv("GITHUB_REPO")
+    base_ref = os.getenv("BASE_REF")  # Base branch reference
+    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
         print("Failed to fetch PR files")
         exit(1)
+
     files = response.json()
     code_changes = []
-    
+
     for file in files:
         filename = file['filename']
         patch = file.get('patch', '')
         if not patch:
             continue
-            
+        
+        # Fetch the full file content
+        full_content = fetch_file_content(repo, filename, base_ref)
+        if full_content is None:
+            print(f"Skipping {filename} due to missing content")
+            continue
+        
         patch_lines = patch.split('\n')
         position = 0  # GitHub diff positions are relative to the diff
         old_line, new_line = None, None
-        
+
         for line in patch_lines:
             if line.startswith('@@'):
                 # Extract line numbers from the diff header using regex
@@ -45,7 +75,8 @@ def read_diff():
                     "file": filename,
                     "line": new_line,
                     "content": line[1:],  # Skip the leading +
-                    "position": position
+                    "position": position,
+                    "full_context": full_content
                 })
                 new_line += 1
                 position += 1
@@ -55,11 +86,10 @@ def read_diff():
                 position += 1
             elif not line.startswith('\\') and not line.startswith('+++') and not line.startswith('---'):
                 # Context line (no changes, just increment both line and position)
-                # Skip lines like "\ No newline at end of file"
                 old_line += 1
                 new_line += 1
                 position += 1
-    
+
     return code_changes
 
 
@@ -73,11 +103,23 @@ def review_code():
         file_path = change["file"]
         position = change["position"]
         code = change["content"]
+        full_context = change["full_context"]
 
-        # Review the line with AI
+        # Include the full file context in the review request
+        review_prompt = (
+            f"### Full File Context:\n"
+            f"{full_context}\n\n"
+            f"### Code Changes:\n"
+            f"File: {file_path}\n"
+            f"Line: {change['line']}\n"
+            f"Code: {code}\n"
+            f"Provide a review considering the entire file context."
+        )
+
+        # Review with AI
         chat_result = reviewer.initiate_chat(
             recipient=reviewer,
-            message=f"Review this line:\n{code}",
+            message=review_prompt,
             max_turns=1
         )
 
