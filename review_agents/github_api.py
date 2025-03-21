@@ -1,7 +1,7 @@
 import os
 import requests
 
-GITHUB_TOKEN = os.getenv("REPO_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO")
 PR_NUMBER = os.getenv("PR_NUMBER")
 
