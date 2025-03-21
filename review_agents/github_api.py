@@ -57,7 +57,23 @@ def get_diff_position(path, line):
 
     response = requests.get(GITHUB_API_URL, headers=headers)
     files = response.json()
+
     for file in files:
         if file['filename'] == path:
-            return file['patch'].split('\n')[line - 1].count(' ')
+            patch = file['patch'].split('\n')
+            added_line_count = 0
+            for i, patch_line in enumerate(patch):
+                # Identify the hunk header to track line numbers
+                if patch_line.startswith('@@'):
+                    hunk_info = patch_line.split(' ')[2]  # Example: "+1,10"
+                    start_line = int(hunk_info.split(',')[0][1:])  # Skip the '+'
+
+                # Count only added lines
+                if patch_line.startswith('+'):
+                    added_line_count += 1
+
+                # Match the added line with given 'line'
+                if added_line_count == line:
+                    return i  # Position in the patch
+
     return None
