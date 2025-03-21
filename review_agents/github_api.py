@@ -24,10 +24,10 @@ def post_comment(body, path, line):
 
     response = requests.post(GITHUB_API_URL, json=payload, headers=headers)
 
-    if response.status_code == 201:
+    if response.status_code == 200:
         print(f"Comment added to {path} on line {line}")
     else:
-        print(f"Failed to add comment: {response.text}")
+        print(f"Failed to add comment: {response.text} with status code {response.status_code}")
 
 
 def get_commit_id():
@@ -46,3 +46,18 @@ def get_commit_id():
     else:
         print(f"Failed to fetch commit ID: {response.text}")
         return None
+
+
+def get_diff_position(path, line):
+    """Get the diff position for a given path and line."""
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+
+    response = requests.get(GITHUB_API_URL, headers=headers)
+    files = response.json()
+    for file in files:
+        if file['filename'] == path:
+            return file['patch'].split('\n')[line - 1].count(' ')
+    return None
