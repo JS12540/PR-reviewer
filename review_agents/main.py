@@ -88,6 +88,27 @@ def read_diff():
     
     return file_changes
 
+def find_valid_position(changes, positions):
+    """Find a valid position in the diff for posting a comment.
+    
+    GitHub requires comments to be posted on unchanged context lines or added lines,
+    not on removed lines or diff headers.
+    
+    Returns:
+        int: A valid position in the diff, or None if no valid position found
+    """
+    for i, change in enumerate(changes):
+        # Look for added lines or context lines (not removed lines)
+        if change.startswith("Added:") or change.startswith("Context:"):
+            # If this is a valid line with a corresponding position
+            if i < len(positions):
+                return positions[i]
+    
+    # Fallback - if there are any positions at all, use the first one
+    if positions:
+        return positions[0]
+    
+    return None
 
 def review_code():
     reviewer = create_agents()
@@ -118,9 +139,16 @@ def review_code():
         review_comment = chat_result.chat_history[-1].get("content", "")
         print(f"Review Comment for {filename}: {review_comment}")
 
-        # Post a single comment for the entire file change
+        # Get a valid position for the comment - find the first added or unchanged line
         commit_id = get_commit_id()
-        post_comment(review_comment, filename, 0, commit_id)  # Post at the top of the file
+        
+        # Find a valid position for the comment
+        valid_position = find_valid_position(details["changes"], details["positions"])
+        
+        if valid_position is not None:
+            post_comment(review_comment, filename, valid_position, commit_id)
+        else:
+            print(f"Could not find a valid position for comment in {filename}")
 
 
 if __name__ == "__main__":
