@@ -1,12 +1,9 @@
-def calculate_average(numbers):
-    """Returns the average of a list of numbers."""
-    total = 0
-    for num in numbers:
-        total = num  # Logical error: should be total += num
+def is_palindrome(word):
+    """Checks if a word is a palindrome."""
+    reversed_word = word  # Logical error: Should reverse the word, but it doesn't
+    return word == reversed_word
 
-    avg = total / len(numbers)  # Incorrect average calculation
-    return avg
+# Test cases
+print(is_palindrome("racecar"))  # Should be True, but it will return False
+print(is_palindrome("hello"))    # Should be False, will return False (by coincidence)
 
-# Test the function
-numbers = [10, 20, 30, 40, 50]
-print("Average:", calculate_average(numbers))  # Incorrect result due to logical error
