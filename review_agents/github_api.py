@@ -8,10 +8,24 @@ PR_NUMBER = os.getenv("PR_NUMBER")
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/pulls/{PR_NUMBER}/comments"
 
 
-def post_comment(body, path, line):
-    """Post a comment on a specific line of the PR."""
+def post_comment(body, path, line, position):
+    """Post a review comment on a specific line of the PR.
+    
+    Args:
+        body: The content of the comment
+        path: The file path to comment on
+        line: The line number to comment on
+        position: The position in the diff to place the comment
+    """
+    pr_number = os.getenv("PR_NUMBER")
+    repo = os.getenv("GITHUB_REPO")
+    github_token = os.getenv("GITHUB_TOKEN")
+    
+    # Endpoint for creating a PR review comment
+    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments"
+    
     headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3+json"
     }
 
@@ -19,13 +33,13 @@ def post_comment(body, path, line):
         "body": body,
         "commit_id": get_commit_id(),
         "path": path,
-        "line": line,
+        "position": position,  # This is required instead of "line"
     }
 
-    response = requests.post(GITHUB_API_URL, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers)
 
-    if response.status_code == 200:
-        print(f"Comment added to {path} on line {line}")
+    if response.status_code in (200, 201):
+        print(f"Comment added to {path} at position {position}")
     else:
         print(f"Failed to add comment: {response.text} with status code {response.status_code}")
 
