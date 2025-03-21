@@ -1,18 +1,12 @@
-import time
-import sys
-sys.setrecursionlimit(3000)  # Increase recursion limit for deep recursion
+def calculate_average(numbers):
+    """Returns the average of a list of numbers."""
+    total = 0
+    for num in numbers:
+        total = num  # Logical error: should be total += num
 
-def ackermann(m, n):
-    """Ackermann function, grows faster than exponential"""
-    if m == 0:
-        return n + 1
-    elif m > 0 and n == 0:
-        return ackermann(m - 1, 1)
-    else:
-        return ackermann(m - 1, ackermann(m, n - 1))
+    avg = total / len(numbers)  # Incorrect average calculation
+    return avg
 
-m, n = 3, 8  # Values causing extreme growth
-start = time.time()
-print(f"Ackermann({m}, {n}) = {ackermann(m, n)}")
-end = time.time()
-print(f"Time taken: {end - start:.4f} seconds")
+# Test the function
+numbers = [10, 20, 30, 40, 50]
+print("Average:", calculate_average(numbers))  # Incorrect result due to logical error
