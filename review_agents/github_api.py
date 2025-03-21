@@ -24,10 +24,10 @@ def post_comment(body, path, line):
 
     response = requests.post(GITHUB_API_URL, json=payload, headers=headers)
 
-    if response.status_code == 201:
+    if response.status_code == 200:
         print(f"Comment added to {path} on line {line}")
     else:
-        print(f"Failed to add comment: {response.text}")
+        print(f"Failed to add comment: {response.text} with status code {response.status_code}")
 
 
 def get_commit_id():
