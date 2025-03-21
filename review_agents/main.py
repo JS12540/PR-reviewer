@@ -78,7 +78,7 @@ def review_code():
         chat_result = reviewer.initiate_chat(
             recipient=reviewer,
             message=f"Review this line:\n{code}",
-            max_turns=2
+            max_turns=1
         )
 
         review_comment = chat_result.chat_history[-1].get("content", "")
