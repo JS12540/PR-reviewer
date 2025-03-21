@@ -33,4 +33,4 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          python review_agent/main.py
+          python review_agents/main.py
