@@ -1,5 +1,5 @@
 import os
-from github_api import post_comment, get_diff_position
+from github_api import post_comment
 from ai_agent import create_agents
 import requests
 
@@ -22,17 +22,40 @@ def read_diff():
     files = response.json()
 
     code_changes = []
+    
     for file in files:
         filename = file['filename']
         patch = file.get('patch', '').split('\n')
 
-        for i, line in enumerate(patch):
-            if line.startswith('+') and not line.startswith('+++'):
+        position = 0  # GitHub diff positions are relative to the diff
+        old_line, new_line = None, None
+
+        for line in patch:
+            if line.startswith('@@'):
+                # Extract line numbers from the diff header
+                _, old_info, new_info, _ = line.split(' ')
+                old_line = int(old_info.split(',')[0][1:])
+                new_line = int(new_info.split(',')[0][1:])
+                position = 0  # Reset diff position at each hunk
+
+            elif line.startswith('+') and not line.startswith('+++'):
+                # Added line
                 code_changes.append({
                     "file": filename,
-                    "line": i + 1,
-                    "content": line[1:]
+                    "line": new_line,
+                    "content": line[1:],  # Skip the leading +
+                    "position": position
                 })
+                new_line += 1
+            elif line.startswith('-') and not line.startswith('---'):
+                # Removed line (just increment position, no comment needed)
+                old_line += 1
+                position += 1
+            else:
+                # Context line (no changes, just increment both line and position)
+                old_line += 1
+                new_line += 1
+                position += 1
 
     return code_changes
 
@@ -45,14 +68,8 @@ def review_code():
 
     for change in changes:
         file_path = change["file"]
-        line_number = change["line"]
+        position = change["position"]
         code = change["content"]
-
-        # Get diff position (replace with your logic if needed)
-        position = get_diff_position(file_path, line_number)
-        if position is None:
-            print(f"Could not find position for {file_path} at line {line_number}")
-            continue
 
         # Review the line with AI
         reviewer.initiate_chat(
@@ -60,10 +77,11 @@ def review_code():
             message=f"Review this line:\n{code}",
             max_turns=2
         )
-        print(f"Review Comment: {reviewer.chat_messages[-1]}")
-        review_comment = reviewer.chat_messages[-1]
 
-        # Add comment to PR using position instead of line_number
+        review_comment = reviewer.chat_messages[-1]
+        print(f"Review Comment: {review_comment}")
+
+        # Add comment using diff position
         post_comment(review_comment, file_path, position)
 
 
