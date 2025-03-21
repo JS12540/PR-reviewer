@@ -32,6 +32,7 @@ def post_comment(body, path, line):
 
 def get_commit_id():
     """Get the latest commit ID from the PR."""
+    print(f"GITHUB_TOKEN: {GITHUB_TOKEN},GITHUB_REPO:{GITHUB_REPO} PR_NUMBER: {PR_NUMBER}")
     url = f"https://api.github.com/repos/{GITHUB_REPO}/pulls/{PR_NUMBER}/commits"
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
