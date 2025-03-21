@@ -8,7 +8,7 @@ PR_NUMBER = os.getenv("PR_NUMBER")
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/pulls/{PR_NUMBER}/comments"
 
 
-def post_comment(body, path, line, position):
+def post_comment(body, path, position):
     """Post a review comment on a specific line of the PR.
     
     Args:
