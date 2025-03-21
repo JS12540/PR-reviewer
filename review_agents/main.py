@@ -44,7 +44,7 @@ def read_diff():
         exit(1)
 
     files = response.json()
-    code_changes = []
+    file_changes = {}
 
     for file in files:
         filename = file['filename']
@@ -57,11 +57,14 @@ def read_diff():
         if full_content is None:
             print(f"Skipping {filename} due to missing content")
             continue
+
+        if filename not in file_changes:
+            file_changes[filename] = {
+                "full_context": full_content,
+                "changes": []
+            }
         
         patch_lines = patch.split('\n')
-        position = 0  # GitHub diff positions are relative to the diff
-        old_line, new_line = None, None
-
         for line in patch_lines:
             if line.startswith('@@'):
                 # Extract line numbers from the diff header using regex
@@ -69,29 +72,18 @@ def read_diff():
                 if match:
                     old_line = int(match.group(1))
                     new_line = int(match.group(2))
-                    position = 0  # Reset diff position at each hunk
             elif line.startswith('+') and not line.startswith('+++'):
                 # Added line
-                code_changes.append({
-                    "file": filename,
-                    "line": new_line,
-                    "content": line[1:],  # Skip the leading +
-                    "position": position,
-                    "full_context": full_content
-                })
-                new_line += 1
-                position += 1
+                file_changes[filename]["changes"].append(f"Added: {line[1:]}")
             elif line.startswith('-') and not line.startswith('---'):
-                # Removed line (just increment position, no comment needed)
-                old_line += 1
-                position += 1
-            elif not line.startswith('\\') and not line.startswith('+++') and not line.startswith('---'):
-                # Context line (no changes, just increment both line and position)
-                old_line += 1
-                new_line += 1
-                position += 1
+                # Removed line
+                file_changes[filename]["changes"].append(f"Removed: {line[1:]}")
+            elif not line.startswith(('\\', '+++', '---')):
+                # Context line (no changes)
+                file_changes[filename]["changes"].append(f"Context: {line}")
+    
+    return file_changes
 
-    return code_changes
 
 
 def review_code():
@@ -100,20 +92,16 @@ def review_code():
     # Get the code changes from PR
     changes = read_diff()
 
-    for change in changes:
-        file_path = change["file"]
-        position = change["position"]
-        code = change["content"]
-        full_context = change["full_context"]
+    for filename, details in changes.items():
+        full_context = details["full_context"]
+        changes_summary = "\n".join(details["changes"])
 
         # Include the full file context in the review request
         review_prompt = (
             f"### Full File Context:\n"
             f"{full_context}\n\n"
             f"### Code Changes:\n"
-            f"File: {file_path}\n"
-            f"Line: {change['line']}\n"
-            f"Code: {code}\n"
+            f"{changes_summary}\n\n"
             f"Provide a review considering the entire file context."
         )
 
@@ -127,9 +115,8 @@ def review_code():
         review_comment = chat_result.chat_history[-1].get("content", "")
         print(f"Review Comment: {review_comment}")
 
-        # Add comment using diff position
-        post_comment(review_comment, file_path, position)
-
+        # Add comment for the entire file
+        post_comment(review_comment, filename, 0)
 
 if __name__ == "__main__":
     review_code()
