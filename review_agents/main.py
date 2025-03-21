@@ -54,8 +54,8 @@ def review_code():
             message=f"Review this line:\n{code}",
             max_turns=2
         )
-
-        review_comment = reviewer.chat_messages[-1]['content']
+        print(f"Review Comment: {reviewer.chat_messages[-1]}")
+        review_comment = reviewer.chat_messages[-1]
 
         # Add comment to PR
         post_comment(review_comment, file_path, line_number)
