@@ -31,6 +31,7 @@ def read_diff():
         old_line, new_line = None, None
 
         for line in patch:
+            print(line)
             if line.startswith('@@'):
                 # Extract line numbers from the diff header
                 _, old_info, new_info, _ = line.split(' ')
