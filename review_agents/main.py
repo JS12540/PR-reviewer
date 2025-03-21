@@ -1,5 +1,5 @@
 import os
-from github_api import post_comment
+from github_api import post_comment, get_commit_id
 from ai_agent import create_agents
 import requests
 import re
@@ -61,29 +61,32 @@ def read_diff():
         if filename not in file_changes:
             file_changes[filename] = {
                 "full_context": full_content,
-                "changes": []
+                "changes": [],
+                "positions": []
             }
         
         patch_lines = patch.split('\n')
+        position = 0
         for line in patch_lines:
             if line.startswith('@@'):
                 # Extract line numbers from the diff header using regex
-                match = re.search(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@', line)
+                match = re.search(r'@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@', line)
                 if match:
-                    old_line = int(match.group(1))
-                    new_line = int(match.group(2))
+                    new_line = int(match.group(1))
+                    position = 0  # Reset position at each new diff
             elif line.startswith('+') and not line.startswith('+++'):
                 # Added line
                 file_changes[filename]["changes"].append(f"Added: {line[1:]}")
+                file_changes[filename]["positions"].append(position)
             elif line.startswith('-') and not line.startswith('---'):
                 # Removed line
                 file_changes[filename]["changes"].append(f"Removed: {line[1:]}")
             elif not line.startswith(('\\', '+++', '---')):
                 # Context line (no changes)
                 file_changes[filename]["changes"].append(f"Context: {line}")
+            position += 1
     
     return file_changes
-
 
 
 def review_code():
@@ -115,8 +118,11 @@ def review_code():
         review_comment = chat_result.chat_history[-1].get("content", "")
         print(f"Review Comment: {review_comment}")
 
-        # Add comment for the entire file
-        post_comment(review_comment, filename, 0)
+        # Add comment for each change at its correct position
+        commit_id = get_commit_id()
+        for position in details["positions"]:
+            post_comment(review_comment, filename, position, commit_id)
+
 
 if __name__ == "__main__":
     review_code()
