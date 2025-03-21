@@ -30,6 +30,7 @@ def read_diff():
     pr_number = os.getenv("PR_NUMBER")
     repo = os.getenv("GITHUB_REPO")
     base_ref = os.getenv("BASE_REF")  # Base branch reference
+    print(f"Base branch: {base_ref}")
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
 
     headers = {
