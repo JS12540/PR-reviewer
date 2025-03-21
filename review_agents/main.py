@@ -116,12 +116,11 @@ def review_code():
         )
 
         review_comment = chat_result.chat_history[-1].get("content", "")
-        print(f"Review Comment: {review_comment}")
+        print(f"Review Comment for {filename}: {review_comment}")
 
-        # Add comment for each change at its correct position
+        # Post a single comment for the entire file change
         commit_id = get_commit_id()
-        for position in details["positions"]:
-            post_comment(review_comment, filename, position, commit_id)
+        post_comment(review_comment, filename, 0, commit_id)  # Post at the top of the file
 
 
 if __name__ == "__main__":
