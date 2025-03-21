@@ -1,5 +1,5 @@
 import os
-from github_api import post_comment
+from github_api import post_comment, get_diff_position
 from ai_agent import create_agents
 import requests
 
@@ -48,6 +48,12 @@ def review_code():
         line_number = change["line"]
         code = change["content"]
 
+        # Get diff position (replace with your logic if needed)
+        position = get_diff_position(file_path, line_number)
+        if position is None:
+            print(f"Could not find position for {file_path} at line {line_number}")
+            continue
+
         # Review the line with AI
         reviewer.initiate_chat(
             recipient=reviewer,
@@ -57,8 +63,8 @@ def review_code():
         print(f"Review Comment: {reviewer.chat_messages[-1]}")
         review_comment = reviewer.chat_messages[-1]
 
-        # Add comment to PR
-        post_comment(review_comment, file_path, line_number)
+        # Add comment to PR using position instead of line_number
+        post_comment(review_comment, file_path, position)
 
 
 if __name__ == "__main__":
