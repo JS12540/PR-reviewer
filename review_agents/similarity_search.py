@@ -1,5 +1,8 @@
 from pymongo import MongoClient
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+import numpy as np
+
 
 def search_similar_contexts(embedding, top_k=3):
     mongo_client = MongoClient(os.getenv("MONGO_URI"))
