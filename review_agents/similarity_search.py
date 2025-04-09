@@ -15,7 +15,7 @@ def search_similar_contexts(embedding, top_k=3):
     for doc in all_docs:
         stored_embedding = np.array(doc["embedding"])
         score = cosine_similarity([embedding], [stored_embedding])[0][0]
-        scored.append((score, doc["text"]))
+        scored.append((score, doc["content"]))
 
     scored.sort(reverse=True, key=lambda x: x[0])
     return [text for _, text in scored[:top_k]]
