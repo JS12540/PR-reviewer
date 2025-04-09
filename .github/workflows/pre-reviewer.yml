@@ -33,5 +33,8 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          COLLECTION_NAME: ${{ secrets.COLLECTION_NAME }}
         run: |
           python review_agents/main.py

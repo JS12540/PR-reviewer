@@ -1,43 +1,5 @@
-import os
-from github_api import post_comment, get_commit_id
-from ai_agent import create_agents
-import requests
-import re
-from openai import OpenAI
-#from embed_repo import embed_text
-from similarity_search import search_similar_contexts
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def embed_text(text):
-    response = client.embeddings.create(
-        input=[text],
-        model="text-embedding-3-small"
-    )
-    return response.data[0].embedding
-def fetch_file_content(repo, filename, ref):
-    """Fetch the entire content of the file from the repo."""
-    url = f"https://api.github.com/repos/{repo}/contents/{filename}?ref={ref}"
-    
-    headers = {
-        "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print(f"Failed to fetch file content: {filename}")
-        return None
-
-    file_data = response.json()
-    if "content" in file_data:
-        import base64
-        return base64.b64decode(file_data["content"]).decode("utf-8")
-    return None
-
-
 def read_diff():
-    """Read the diff from the PR and include full file context."""
+    """Read the diff from the PR, embed the changes, and store in MongoDB."""
     pr_number = os.getenv("PR_NUMBER")
     repo = os.getenv("GITHUB_REPO")
     base_ref = os.getenv("BASE_REF")  # Base branch reference
@@ -48,7 +10,7 @@ def read_diff():
         "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
         "Accept": "application/vnd.github.v3+json"
     }
-    
+
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
         print("Failed to fetch PR files")
@@ -73,9 +35,10 @@ def read_diff():
             file_changes[filename] = {
                 "full_context": full_content,
                 "changes": [],
-                "positions": []
+                "positions": [],
+                "embeddings": None
             }
-        
+
         patch_lines = patch.split('\n')
         position = 0
         for line in patch_lines:
@@ -92,44 +55,55 @@ def read_diff():
             elif line.startswith('-') and not line.startswith('---'):
                 # Removed line
                 file_changes[filename]["changes"].append(f"Removed: {line[1:]}")
-            elif not line.startswith(('\\', '+++', '---')):
+            elif not line.startswith(('\\', '+++', '---')): 
                 # Context line (no changes)
                 file_changes[filename]["changes"].append(f"Context: {line}")
             position += 1
 
-    
+        # Now we have all changes for the file, generate embeddings
+        changes_text = "\n".join(file_changes[filename]["changes"])
+        file_changes[filename]["embeddings"] = get_embeddings(changes_text)
+
+        # Save file changes, full context, and embeddings to MongoDB
+        file_data = {
+            "filename": filename,
+            "full_context": file_changes[filename]["full_context"],
+            "changes": file_changes[filename]["changes"],
+            "embeddings": file_changes[filename]["embeddings"]
+        }
+        collection.update_one(
+            {"filename": filename},
+            {"$set": file_data},
+            upsert=True
+        )
+
     return file_changes
 
-
-def review_code():
+    def review_code():
     reviewer = create_agents()
-
-    # Get the code changes from PR
     changes = read_diff()
 
     for filename, details in changes.items():
         full_context = details["full_context"]
         changes_summary = "\n".join(details["changes"])
+        changes_text = f"{filename}\n{changes_summary}"
 
-        # Embed the changes for similarity search
-        change_embeddings = embed_text(changes_summary)
-        similar_contexts = search_similar_contexts(change_embeddings)
+        # 1. Get embedding of changes
+        change_embedding = get_embedding(changes_text)
+
+        # 2. Retrieve similar contexts from MongoDB
+        similar_contexts = search_similar_contexts(change_embedding)
         similar_texts = "\n\n".join(similar_contexts)
 
-        print(f"### Similar Contexts for {filename}:\n{similar_texts}")
-
-        # Include the full file context in the review request
+        # 3. Construct the review prompt
         review_prompt = (
-            f"### Full File Context:\n"
-            f"{full_context}\n\n"
-            f"### Similar Contexts:\n"
-            f"{similar_texts}\n\n"
-            f"### Code Changes:\n"
-            f"{changes_summary}\n\n"
-            f"Provide a review considering the entire file context."
+            f"### Full File Context:\n{full_context}\n\n"
+            f"### Code Changes:\n{changes_summary}\n\n"
+            f"### Similar Code Contexts:\n{similar_texts}\n\n"
+            f"Review the changes considering the file and similar past code contexts."
         )
 
-        # Review with AI
+        # 4. Get AI Review
         chat_result = reviewer.initiate_chat(
             recipient=reviewer,
             message=review_prompt,
@@ -139,10 +113,6 @@ def review_code():
         review_comment = chat_result.chat_history[-1].get("content", "")
         print(f"Review Comment for {filename}: {review_comment}")
 
-        # Post a single comment for the entire file change
         commit_id = get_commit_id()
-        post_comment(review_comment, filename, 0, commit_id)  # Post at the top of the file
-
-
-if __name__ == "__main__":
-    review_code()
+        post_comment(review_comment, filename, 0, commit_id)
+S
