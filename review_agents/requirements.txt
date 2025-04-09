@@ -3,3 +3,8 @@ autogen==0.8.3
 openai==1.68.0
 python-dotenv==1.0.1
 requests==2.32.3
+pymongo==4.11.3
+GitPython==3.1.44
+langchain==0.3.23
+tiktoken==0.9.0
+scikit-learn==1.6.1
