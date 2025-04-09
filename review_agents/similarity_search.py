@@ -1,4 +1,4 @@
-
+from pymongo import MongoClient
 from sklearn.metrics.pairwise import cosine_similarity
 
 def search_similar_contexts(embedding, top_k=3):
