@@ -6,6 +6,8 @@ import re
 from openai import OpenAI
 #from embed_repo import embed_text
 from similarity_search import search_similar_contexts
+from code_graph.code_graph_buildé import extract_graph_from_code
+from mongo import store_codegraph, get_codegraph
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -65,6 +67,9 @@ def read_diff():
         
         # Fetch the full file content
         full_content = fetch_file_content(repo, filename, base_ref)
+        code_graph = extract_graph_from_code(full_content)
+        store_codegraph(repo, code_graph)
+
         if full_content is None:
             print(f"Skipping {filename} due to missing content")
             continue
