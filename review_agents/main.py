@@ -68,8 +68,18 @@ def read_diff():
         # Fetch the full file content
         full_content = fetch_file_content(repo, filename, base_ref)
         if filename.endswith(".py"):
-            code_graph = extract_graph_from_code(full_content)
-            store_codegraph(repo, code_graph)
+            if not isinstance(full_content, str):
+                print(f"Skipping {filename}: could not fetch valid content.")
+                continue
+
+            try:
+                code_graph = extract_graph_from_code(full_content)
+                store_codegraph(repo, code_graph)
+
+            except Exception as e:
+                print(f"Error parsing or storing graph for {filename}: {e}")
+                continue
+
 
         if full_content is None:
             print(f"Skipping {filename} due to missing content")
