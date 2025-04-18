@@ -67,8 +67,9 @@ def read_diff():
         
         # Fetch the full file content
         full_content = fetch_file_content(repo, filename, base_ref)
-        code_graph = extract_graph_from_code(full_content)
-        store_codegraph(repo, code_graph)
+        if file.endswith(".py"):
+            code_graph = extract_graph_from_code(full_content)
+            store_codegraph(repo, code_graph)
 
         if full_content is None:
             print(f"Skipping {filename} due to missing content")
