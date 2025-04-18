@@ -3,7 +3,20 @@ from github_api import post_comment, get_commit_id
 from ai_agent import create_agents
 import requests
 import re
+from openai import OpenAI
+#from embed_repo import embed_text
+from similarity_search import search_similar_contexts
+from graph_builder import extract_graph_from_code
+from mongo import store_codegraph, get_codegraph
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def embed_text(text):
+    response = client.embeddings.create(
+        input=[text],
+        model="text-embedding-3-small"
+    )
+    return response.data[0].embedding
 def fetch_file_content(repo, filename, ref):
     """Fetch the entire content of the file from the repo."""
     url = f"https://api.github.com/repos/{repo}/contents/{filename}?ref={ref}"
@@ -54,6 +67,20 @@ def read_diff():
         
         # Fetch the full file content
         full_content = fetch_file_content(repo, filename, base_ref)
+        if filename.endswith(".py"):
+            if not isinstance(full_content, str):
+                print(f"Skipping {filename}: could not fetch valid content.")
+                continue
+
+            try:
+                code_graph = extract_graph_from_code(full_content)
+                store_codegraph(repo,filename, code_graph)
+
+            except Exception as e:
+                print(f"Error parsing or storing graph for {filename}: {e}")
+                continue
+
+
         if full_content is None:
             print(f"Skipping {filename} due to missing content")
             continue
@@ -85,6 +112,7 @@ def read_diff():
                 # Context line (no changes)
                 file_changes[filename]["changes"].append(f"Context: {line}")
             position += 1
+
     
     return file_changes
 
@@ -120,10 +148,19 @@ def review_code():
         full_context = details["full_context"]
         changes_summary = "\n".join(details["changes"])
 
+        # Embed the changes for similarity search
+        change_embeddings = embed_text(changes_summary)
+        similar_contexts = search_similar_contexts(change_embeddings)
+        similar_texts = "\n\n".join(similar_contexts)
+
+        print(f"### Similar Contexts for {filename}:\n{similar_texts}")
+
         # Include the full file context in the review request
         review_prompt = (
             f"### Full File Context:\n"
             f"{full_context}\n\n"
+            f"### Similar Contexts:\n"
+            f"{similar_texts}\n\n"
             f"### Code Changes:\n"
             f"{changes_summary}\n\n"
             f"Provide a review considering the entire file context."
