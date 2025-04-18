@@ -74,7 +74,7 @@ def read_diff():
 
             try:
                 code_graph = extract_graph_from_code(full_content)
-                store_codegraph(repo, code_graph)
+                store_codegraph(repo,filename, code_graph)
 
             except Exception as e:
                 print(f"Error parsing or storing graph for {filename}: {e}")
