@@ -67,7 +67,7 @@ def read_diff():
         
         # Fetch the full file content
         full_content = fetch_file_content(repo, filename, base_ref)
-        if file.endswith(".py"):
+        if filename.endswith(".py"):
             code_graph = extract_graph_from_code(full_content)
             store_codegraph(repo, code_graph)
 
