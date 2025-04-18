@@ -6,8 +6,8 @@ import re
 from openai import OpenAI
 #from embed_repo import embed_text
 from similarity_search import search_similar_contexts
-from code_graph.graph_builder import extract_graph_from_code
-from code_graph.mongo import store_codegraph, get_codegraph
+from graph_builder import extract_graph_from_code
+from mongo import store_codegraph, get_codegraph
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
